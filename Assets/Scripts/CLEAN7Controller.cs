@@ -103,10 +103,7 @@ public class CLEAN7Controller : MonoBehaviour
         cc.Move((moveDir + Vector3.up * verticalV) * Time.fixedDeltaTime);
     }
 
-    // ─────────────────────────────────────────────
-    // INTERACCIÓN
-    // ─────────────────────────────────────────────
-
+  
     private void HandleInteractInput()
     {
         if (Input.GetKeyDown(interactKey))
@@ -136,9 +133,7 @@ public class CLEAN7Controller : MonoBehaviour
         }
     }
 
-    // ─────────────────────────────────────────────
-    // DAÑO
-    // ─────────────────────────────────────────────
+   
 
     public void TakeDamage(float amount)
     {
