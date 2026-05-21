@@ -1,20 +1,32 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Events;
 
-
+/// <summary>
+/// CLEAN-7 Controller — Movimiento isométrico 3D.
+/// Requiere: CharacterController en el mismo GameObject.
+/// Setup cámara: Y=45°, X≈55°, posición elevada. Asignar isoCameraReference en Inspector.
+/// Parámetros Animator: "Speed" (Float), "IsCleaning" (Bool), "IsDead" (Bool)
+/// </summary>
+[RequireComponent(typeof(CharacterController))]
 public class CLEAN7Controller : MonoBehaviour
 {
+    // ─────────────────────────────────────────────
+    // INSPECTOR
+    // ─────────────────────────────────────────────
 
-
-
+    [Header("Movimiento")]
     [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float runSpeed = 8f;       // velocidad al correr (Shift)
     [SerializeField] private float rotationSpeed = 600f;
     [SerializeField] private float acceleration = 15f;
     [SerializeField] private float deceleration = 20f;
     [SerializeField] private float gravity = -20f;
 
+    [Header("Cámara isométrica")]
+    [Tooltip("Arrastrá la Main Camera aquí")]
     [SerializeField] private Transform isoCameraReference;
 
+    [Header("Interacción")]
     [SerializeField] private float interactRange = 1.8f;
     [SerializeField] private LayerMask interactableLayer;
     [SerializeField] private KeyCode interactKey = KeyCode.E;
@@ -27,7 +39,9 @@ public class CLEAN7Controller : MonoBehaviour
     public UnityEvent onDamaged;
     public UnityEvent onDeath;
 
-
+    // ─────────────────────────────────────────────
+    // ESTADO INTERNO
+    // ─────────────────────────────────────────────
 
     private CharacterController cc;
     private Animator anim;
@@ -36,12 +50,18 @@ public class CLEAN7Controller : MonoBehaviour
     private float verticalV = 0f;
     private float currentHP;
     private bool isAlive = true;
+    private bool isCleaning = false;
 
-
+    // ─────────────────────────────────────────────
+    // PROPIEDADES PÚBLICAS
+    // ─────────────────────────────────────────────
 
     public bool IsAlive => isAlive;
     public float MoveSpeed => moveSpeed;
 
+    // ─────────────────────────────────────────────
+    // INIT
+    // ─────────────────────────────────────────────
 
     private void Awake()
     {
@@ -50,14 +70,16 @@ public class CLEAN7Controller : MonoBehaviour
         currentHP = maxHP;
     }
 
-  
+    // ─────────────────────────────────────────────
+    // LOOP
+    // ─────────────────────────────────────────────
 
     private void Update()
     {
         if (!isAlive) return;
         HandleMovementInput();
         HandleInteractInput();
-     
+        UpdateAnimator();
     }
 
     private void FixedUpdate()
@@ -66,12 +88,21 @@ public class CLEAN7Controller : MonoBehaviour
         ApplyMovement();
     }
 
-   
+    // ─────────────────────────────────────────────
+    // MOVIMIENTO ISOMÉTRICO
+    // ─────────────────────────────────────────────
+
     private void HandleMovementInput()
     {
+        // Bloquear movimiento mientras limpia
+        if (isCleaning) return;
+
         float ix = Input.GetAxisRaw("Horizontal");
         float iz = Input.GetAxisRaw("Vertical");
         Vector3 raw = new Vector3(ix, 0f, iz).normalized;
+
+        // Shift para correr
+        float targetSpeed = Input.GetKey(KeyCode.LeftShift) ? runSpeed : moveSpeed;
 
         if (raw.magnitude > 0.01f)
         {
@@ -84,7 +115,7 @@ public class CLEAN7Controller : MonoBehaviour
 
             Vector3 targetDir = (forward * raw.z + right * raw.x).normalized;
 
-            moveDir = Vector3.MoveTowards(moveDir, targetDir * moveSpeed, acceleration * Time.deltaTime);
+            moveDir = Vector3.MoveTowards(moveDir, targetDir * targetSpeed, acceleration * Time.deltaTime);
 
             transform.rotation = Quaternion.RotateTowards(
                 transform.rotation,
@@ -103,7 +134,10 @@ public class CLEAN7Controller : MonoBehaviour
         cc.Move((moveDir + Vector3.up * verticalV) * Time.fixedDeltaTime);
     }
 
-  
+    // ─────────────────────────────────────────────
+    // INTERACCIÓN
+    // ─────────────────────────────────────────────
+
     private void HandleInteractInput()
     {
         if (Input.GetKeyDown(interactKey))
@@ -130,10 +164,35 @@ public class CLEAN7Controller : MonoBehaviour
         {
             closest.Clean(this);
             onInteract?.Invoke();
+            StartCoroutine(PlayCleanAnimation());
         }
     }
 
-   
+    /// <summary>
+    /// Activa la animación de limpieza y la desactiva cuando termina.
+    /// La duración debe coincidir aproximadamente con el clip de Cleaning en Mixamo.
+    /// </summary>
+    private System.Collections.IEnumerator PlayCleanAnimation()
+    {
+        isCleaning = true;
+        moveDir = Vector3.zero;   // frenar al limpiar
+
+        if (anim != null) anim.SetBool("IsCleaning", true);
+
+        // Esperar la duración del clip — ajustá este valor al largo de tu animación
+        yield return new WaitForSeconds(cleaningAnimDuration);
+
+        isCleaning = false;
+        if (anim != null) anim.SetBool("IsCleaning", false);
+    }
+
+    [Header("Animaciones")]
+    [Tooltip("Duración en segundos del clip 'Cleaning' de Mixamo")]
+    [SerializeField] private float cleaningAnimDuration = 1.5f;
+
+    // ─────────────────────────────────────────────
+    // DAÑO
+    // ─────────────────────────────────────────────
 
     public void TakeDamage(float amount)
     {
@@ -147,11 +206,27 @@ public class CLEAN7Controller : MonoBehaviour
     {
         isAlive = false;
         onDeath?.Invoke();
+        if (anim != null)
+        {
+            anim.SetBool("IsCleaning", false);
+            anim.SetBool("IsDead", true);
+        }
         GameManager.Instance?.TriggerDefeat();
     }
 
+    // ─────────────────────────────────────────────
+    // ANIMATOR
+    // Speed > 0.1  → WalkingCrouch
+    // Speed > 4.0  → Running  (si usás Shift)
+    // IsCleaning   → Cleaning
+    // IsDead       → Die
+    // ─────────────────────────────────────────────
 
-  
+    private void UpdateAnimator()
+    {
+        if (anim == null) return;
+        anim.SetFloat("Speed", moveDir.magnitude);
+    }
 
     private void OnDrawGizmosSelected()
     {
