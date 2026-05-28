@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -8,11 +6,12 @@ public class CleaningManager : MonoBehaviour
     public static CleaningManager Instance { get; private set; }
 
     [Header("Configuración")]
-    [SerializeField] private int totalCleanables = 0;   
+    [SerializeField] private int totalCleanables = 0;
 
     [Header("Eventos")]
-    public UnityEvent onAllCleaned;        
-    public UnityEvent<int> onScoreChanged;       
+    public UnityEvent onAllCleaned;
+    public UnityEvent<int> onScoreChanged;
+
     private int score = 0;
     private int cleanedCount = 0;
     private int totalInScene = 0;
@@ -25,27 +24,27 @@ public class CleaningManager : MonoBehaviour
 
     private void Start()
     {
-        
         if (totalCleanables == 0)
         {
-            
-            totalInScene += FindObjectsOfType<RadioactiveDebris>().Length;
-            totalInScene += FindObjectsOfType<BrokenEnergyCell>().Length;
-            
+            totalInScene += FindObjectsByType<RadioactiveDebris>(FindObjectsSortMode.None).Length;
+            totalInScene += FindObjectsByType<BrokenEnergyCell>(FindObjectsSortMode.None).Length;
         }
         else
         {
             totalInScene = totalCleanables;
         }
+
+        Debug.Log($"[CleaningManager] Total objetos a limpiar: {totalInScene}");
     }
 
     public void RegisterClean(int points)
     {
         cleanedCount++;
         score += points;
-        Debug.Log("Limpiado");
 
         onScoreChanged?.Invoke(score);
+
+        Debug.Log($"[CleaningManager] Limpiados: {cleanedCount}/{totalInScene}");
 
         if (cleanedCount >= totalInScene)
             onAllCleaned?.Invoke();
