@@ -24,25 +24,25 @@ public class PirateWanderer : MonoBehaviour
     [SerializeField] private CLEAN7Controller player;
 
     [Header("Line of Sight")]
-    [SerializeField] private float sightRange  = 12f;
-    [SerializeField] private float sightAngle  = 110f;   // FOV más amplio — es un patrullero
+    [SerializeField] private float sightRange = 12f;
+    [SerializeField] private float sightAngle = 110f;   // FOV más amplio — es un patrullero
     [SerializeField] private LayerMask obstacleMask;
 
     [Header("Wander")]
-    [SerializeField] private float wanderSpeed          = 3f;
+    [SerializeField] private float wanderSpeed = 3f;
     [SerializeField] private float wanderCircleDistance = 2f;
-    [SerializeField] private float wanderCircleRadius   = 1.5f;
-    [SerializeField] private float wanderAngleChange    = 90f;
-    [SerializeField] private float newWanderDestEvery   = 4f;   // pedir nuevo path A* cada N segundos
+    [SerializeField] private float wanderCircleRadius = 1.5f;
+    [SerializeField] private float wanderAngleChange = 90f;
+    [SerializeField] private float newWanderDestEvery = 4f;   // pedir nuevo path A* cada N segundos
 
     [Header("Intercepción")]
-    [SerializeField] private float interceptSpeed    = 5.5f;
-    [SerializeField] private float interceptAhead    = 1.5f;    // cuánto predice adelante al jugador
-    [SerializeField] private float slowingRadius     = 3f;
+    [SerializeField] private float interceptSpeed = 5.5f;
+    [SerializeField] private float interceptAhead = 1.5f;    // cuánto predice adelante al jugador
+    [SerializeField] private float slowingRadius = 3f;
 
     [Header("Ataque")]
-    [SerializeField] private float attackRange    = 1.8f;
-    [SerializeField] private float attackDamage   = 1f;
+    [SerializeField] private float attackRange = 1.8f;
+    [SerializeField] private float attackDamage = 1f;
     [SerializeField] private float attackCooldown = 1.2f;
 
     [Header("Estado")]
@@ -53,26 +53,26 @@ public class PirateWanderer : MonoBehaviour
     // ─────────────────────────────────────────────
 
     private NavMeshAgent agent;
-    private Rigidbody    rb;
-    private Animator     anim;
+    private Rigidbody rb;
+    private Animator anim;
 
-    private Vector3 velocity     = Vector3.zero;
-    private float   wanderAngle  = 0f;
-    private float   attackTimer  = 0f;
-    private float   wanderTimer  = 0f;
+    private Vector3 velocity = Vector3.zero;
+    private float wanderAngle = 0f;
+    private float attackTimer = 0f;
+    private float wanderTimer = 0f;
 
     // Path A*
     private Vector3[] currentPath = new Vector3[0];
-    private int       pathIndex   = 0;
-    private bool      hasPath     = false;
+    private int pathIndex = 0;
+    private bool hasPath = false;
 
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-        rb    = GetComponent<Rigidbody>();
-        anim  = GetComponent<Animator>();
+        rb = GetComponent<Rigidbody>();
+        anim = GetComponent<Animator>();
 
-        rb.isKinematic    = true;
+        rb.isKinematic = true;
         rb.freezeRotation = true;
 
         if (player == null)
@@ -81,8 +81,8 @@ public class PirateWanderer : MonoBehaviour
 
     private void Start()
     {
-        agent.updatePosition = false;   // el steering controla la posición
-        agent.updateRotation = false;
+        agent.updateRotation = false;   // nosotros rotamos manualmente
+        agent.speed = wanderSpeed;
         wanderAngle = Random.Range(0f, Mathf.PI * 2f);
         RequestNewWanderDestination();
     }
@@ -96,9 +96,9 @@ public class PirateWanderer : MonoBehaviour
 
         switch (currentState)
         {
-            case State.Wander:    UpdateWander();    break;
+            case State.Wander: UpdateWander(); break;
             case State.Intercept: UpdateIntercept(); break;
-            case State.Attack:    UpdateAttack();    break;
+            case State.Attack: UpdateAttack(); break;
         }
 
         UpdateAnimator();
@@ -196,7 +196,7 @@ public class PirateWanderer : MonoBehaviour
         }
 
         // Predecir posición futura del jugador para interceptarlo
-        Vector3 playerVel       = player.GetComponent<CharacterController>()?.velocity ?? Vector3.zero;
+        Vector3 playerVel = player.GetComponent<CharacterController>()?.velocity ?? Vector3.zero;
         Vector3 predictedTarget = player.transform.position + playerVel * interceptAhead;
 
         // Arrive hacia la posición predicha
@@ -252,19 +252,12 @@ public class PirateWanderer : MonoBehaviour
     private void ApplySteering(Vector3 force)
     {
         velocity += force * Time.deltaTime;
-        velocity  = SteeringBehaviors.Truncate(velocity, interceptSpeed);
+        velocity = SteeringBehaviors.Truncate(velocity, interceptSpeed);
         velocity.y = 0f;
 
         if (velocity.magnitude > 0.01f)
         {
-            Vector3 newPos = transform.position + velocity * Time.deltaTime;
-
-            // Validar que la nueva posición está en el NavMesh
-            if (UnityEngine.AI.NavMesh.SamplePosition(newPos, out var hit, 0.5f, UnityEngine.AI.NavMesh.AllAreas))
-            {
-                transform.position = hit.position;
-                agent.nextPosition = hit.position;
-            }
+            agent.Move(velocity * Time.deltaTime);
 
             transform.rotation = Quaternion.Slerp(
                 transform.rotation,
@@ -299,8 +292,8 @@ public class PirateWanderer : MonoBehaviour
         if (success && path.Length > 0)
         {
             currentPath = path;
-            pathIndex   = 0;
-            hasPath     = true;
+            pathIndex = 0;
+            hasPath = true;
         }
         else
         {
@@ -315,7 +308,7 @@ public class PirateWanderer : MonoBehaviour
     private bool CheckLoS()
     {
         Vector3 toPlayer = player.transform.position - transform.position;
-        float   dist     = toPlayer.magnitude;
+        float dist = toPlayer.magnitude;
 
         if (dist <= 2f) return true;   // detección cercana sin ángulo
         if (dist > sightRange) return false;
@@ -324,7 +317,7 @@ public class PirateWanderer : MonoBehaviour
         if (angle > sightAngle * 0.5f) return false;
 
         Vector3 origin = transform.position + Vector3.up;
-        Vector3 dir    = (player.transform.position + Vector3.up * 0.5f - origin).normalized;
+        Vector3 dir = (player.transform.position + Vector3.up * 0.5f - origin).normalized;
 
         return !Physics.Raycast(origin, dir, dist, obstacleMask);
     }
