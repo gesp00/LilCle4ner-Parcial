@@ -3363,6 +3363,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Fermin_Bot
       objectReference: {fileID: 0}
+    - target: {fileID: 1290784086992328, guid: 8418297aaa6cc6a4cb259f8f6fd4a144, type: 3}
+      propertyPath: m_TagString
+      value: Untagged
+      objectReference: {fileID: 0}
     - target: {fileID: 4151653804591874, guid: 8418297aaa6cc6a4cb259f8f6fd4a144, type: 3}
       propertyPath: m_LocalScale.x
       value: 3.38387

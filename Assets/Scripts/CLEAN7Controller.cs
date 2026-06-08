@@ -216,16 +216,25 @@ public class CLEAN7Controller : MonoBehaviour
 
     // ─────────────────────────────────────────────
     // ANIMATOR
-    // Speed > 0.1  → WalkingCrouch
-    // Speed > 4.0  → Running  (si usás Shift)
-    // IsCleaning   → Cleaning
-    // IsDead       → Die
+    // Speed (Int): 0 = quieto, 1 = caminando, 2 = corriendo
+    // IsCrouching (Bool): true cuando camina (no corre)
+    // IsCleaning (Bool): true durante animación de limpieza
+    // IsDead (Bool): true al morir
     // ─────────────────────────────────────────────
 
     private void UpdateAnimator()
     {
         if (anim == null) return;
-        anim.SetFloat("Speed", moveDir.magnitude);
+
+        float speed = moveDir.magnitude;
+
+        // Convertir velocidad a Int para el Animator
+        int speedInt = 0;
+        if (speed > 0.1f) speedInt = 1;   // caminando/crouch
+        if (speed > 4.0f) speedInt = 2;   // corriendo
+
+        anim.SetInteger("Speed", speedInt);
+        anim.SetBool("IsCrouching", speed > 0.1f && speed <= 4.0f);
     }
 
     private void OnDrawGizmosSelected()
