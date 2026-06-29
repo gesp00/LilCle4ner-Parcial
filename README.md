@@ -43,10 +43,16 @@ Enemigo 2: Pirate Wanderer (Patrullero Errático)
    El nivel está diseñado con paredes y pasillos que funcionan como restricciones espaciales concretas.
    Estos obstáculos bloquean las líneas de visión y hacen estrictamente necesaria la utilización del pathfinding para que los agentes puedan sortear el entorno arquitectónico y alcanzar sus objetivos.
 
-6. Controles Básicos
+5. Controles Básicos
    
 Movimiento: Teclas W, A, S, D (Orientación relativa a la cámara isométrica).
 
 Interacción: Tecla E (Para limpiar basura o tomar celdas de energía).
 
 Cámara: Vista isométrica fija con seguimiento suave del personaje.
+
+6.  Estética y Coherencia Visual
+   
+El proyecto está desarrollado con una dirección estética clara enfocada en un arte low poly 3D.
+
+Todos los assets, desde los personajes y animaciones hasta el entorno de la estación espacial, responden a una misma lógica visual y temática, asegurando una presentación consistente.
