@@ -116,31 +116,36 @@ public class PirateWanderer : MonoBehaviour
             return;
         }
 
-        // Pedir nuevo destino A* periódicamente
-        if (wanderTimer <= 0f)
+        // Solo pedimos un nuevo destino si NO tenemos ruta actual.
+        // Usamos el timer como tiempo de espera (cooldown) antes de buscar otro punto.
+        if (!hasPath)
         {
-            RequestNewWanderDestination();
-            wanderTimer = newWanderDestEvery;
+            if (wanderTimer <= 0f)
+            {
+                RequestNewWanderDestination();
+                wanderTimer = newWanderDestEvery;
+            }
         }
 
-        if (hasPath && currentPath.Length > 0)
+        if (hasPath && currentPath != null && currentPath.Length > 0)
         {
-            // Seguir el path A* con steering Arrive en cada waypoint
             Vector3 waypoint = currentPath[pathIndex];
             waypoint.y = transform.position.y;
 
             float distToWaypoint = Vector3.Distance(transform.position, waypoint);
-            if (distToWaypoint < 1f)
+
+            // Aumentamos la tolerancia a 1.5f para que no se quede orbitando el nodo
+            if (distToWaypoint < 1.5f)
             {
                 pathIndex++;
                 if (pathIndex >= currentPath.Length)
                 {
                     hasPath = false;
+                    wanderTimer = 1.5f; // Espera un poco en el lugar antes de buscar otro destino
                     return;
                 }
             }
 
-            // Arrive hacia el waypoint del path
             Vector3 arriveForce = SteeringBehaviors.Arrive(
                 transform.position,
                 waypoint,
@@ -148,24 +153,23 @@ public class PirateWanderer : MonoBehaviour
                 wanderSpeed,
                 slowingRadius: 1.5f);
 
-            // Mezclar con Wander para que no sea robótico
+            // Reducimos drásticamente la fuerza del Wander mientras sigue un Path 
+            // para que tenga un caminar natural pero no pierda el rumbo.
             Vector3 wanderForce = SteeringBehaviors.Wander(
                 transform.position,
                 velocity,
-                wanderSpeed * 0.3f,
+                wanderSpeed * 0.1f, // Reducido al 10%
                 wanderCircleDistance,
                 wanderCircleRadius,
                 wanderAngleChange,
                 ref wanderAngle);
 
-            Vector3 totalForce = SteeringBehaviors.Truncate(
-                arriveForce * 0.8f + wanderForce * 0.2f, wanderSpeed);
-
+            Vector3 totalForce = SteeringBehaviors.Truncate(arriveForce + wanderForce, wanderSpeed);
             ApplySteering(totalForce);
         }
         else
         {
-            // Sin path: solo Wander puro hasta que llegue el próximo
+            // Wander puro si no tiene ruta y está esperando el cooldown
             Vector3 wanderForce = SteeringBehaviors.Wander(
                 transform.position,
                 velocity,
@@ -195,11 +199,12 @@ public class PirateWanderer : MonoBehaviour
             return;
         }
 
-        // Predecir posición futura del jugador para interceptarlo
+        // Limitamos la velocidad predicha del jugador para que no calcule posiciones a kilómetros si el jugador usa un Dash
         Vector3 playerVel = player.GetComponent<CharacterController>()?.velocity ?? Vector3.zero;
-        Vector3 predictedTarget = player.transform.position + playerVel * interceptAhead;
+        Vector3 clampedPlayerVel = Vector3.ClampMagnitude(playerVel, interceptSpeed);
 
-        // Arrive hacia la posición predicha
+        Vector3 predictedTarget = player.transform.position + clampedPlayerVel * interceptAhead;
+
         Vector3 arriveForce = SteeringBehaviors.Arrive(
             transform.position,
             predictedTarget,
@@ -253,11 +258,22 @@ public class PirateWanderer : MonoBehaviour
     {
         velocity += force * Time.deltaTime;
         velocity = SteeringBehaviors.Truncate(velocity, interceptSpeed);
+        // Mantenemos la Y en 0 para evitar que el agente intente volar o hundirse
         velocity.y = 0f;
 
         if (velocity.magnitude > 0.01f)
         {
-            agent.Move(velocity * Time.deltaTime);
+            // Chequeo de seguridad: ¿Está el agente tocando el NavMesh?
+            if (agent.isActiveAndEnabled && agent.isOnNavMesh)
+            {
+                agent.Move(velocity * Time.deltaTime);
+            }
+            else
+            {
+                // Si no está en el NavMesh, dejamos un aviso en consola 
+                // para que sepas qué enemigo está fallando.
+                Debug.LogWarning($"{gameObject.name} no está tocando el NavMesh o no está activo.");
+            }
 
             transform.rotation = Quaternion.Slerp(
                 transform.rotation,

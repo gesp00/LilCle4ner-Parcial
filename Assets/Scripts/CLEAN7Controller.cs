@@ -186,8 +186,7 @@ public class CLEAN7Controller : MonoBehaviour
         if (anim != null) anim.SetBool("IsCleaning", false);
     }
 
-    [Header("Animaciones")]
-    [Tooltip("Duración en segundos del clip 'Cleaning' de Mixamo")]
+   
     [SerializeField] private float cleaningAnimDuration = 1.5f;
 
     // ─────────────────────────────────────────────
@@ -222,19 +221,14 @@ public class CLEAN7Controller : MonoBehaviour
     // IsDead (Bool): true al morir
     // ─────────────────────────────────────────────
 
+    
+
     private void UpdateAnimator()
     {
         if (anim == null) return;
 
-        float speed = moveDir.magnitude;
-
-        // Convertir velocidad a Int para el Animator
-        int speedInt = 0;
-        if (speed > 0.1f) speedInt = 1;   // caminando/crouch
-        if (speed > 4.0f) speedInt = 2;   // corriendo
-
-        anim.SetInteger("Speed", speedInt);
-        anim.SetBool("IsCrouching", speed > 0.1f && speed <= 4.0f);
+        anim.SetFloat("Speed", moveDir.magnitude);
+        
     }
 
     private void OnDrawGizmosSelected()
